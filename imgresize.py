@@ -3,6 +3,8 @@
 import argparse, os
 from os.path import basename, dirname, exists, splitext
 import subprocess
+import shutil
+
 
 SIZES = [
     {"size": "1x", "dimension": 400},
@@ -10,6 +12,7 @@ SIZES = [
     {"size": "3x", "dimension": 1200}]
 SIZECUTOFF = 400000
 OUTDIR = "sets/"
+RAWDIR = "rawpics/"
 
 
 
@@ -47,20 +50,44 @@ def resize(img, size, output):
         print("Converted!")
 
 def batch_resize(image_file):
-    for preset in SIZES:
-        output_name = append_size(basename(image_file), preset["size"])
-        output_path = dirname(image_file) + "/" + OUTDIR + output_name
-        # TODO - only need to check output path once per image
-        check_output_path(output_path)
-        resize(image_file, preset["dimension"], output_path)
+    imgdir = dirname(image_file)
+    outdir, rawdir = init_dirs(imgdir)
+    rawimg = archive_raw_img(image_file, rawdir)
+
+    # small image replaces original image
+    preset = SIZES[0]
+    outname = basename(image_file)
+    outpath = os.path.join(imgdir, outname)
+    resize(rawimg, preset["dimension"], outpath)
+
+    # medium & large images go to sets/ directory
+    for preset in (SIZES[1], SIZES[2]):
+        outname = append_size(basename(image_file), preset["size"])
+        outpath = os.path.join(outdir, outname)
+        resize(rawimg, preset["dimension"], outpath)
+
+    #for preset in SIZES:
+        #output_name = append_size(basename(image_file), preset["size"])
+        #output_path = dirname(image_file) + "/" + OUTDIR + output_name
+        ## TODO - only need to check output path once per image
+        #check_output_path(output_path)
+        #resize(image_file, preset["dimension"], output_path)
 
 def check_output_path(path):
     outdir = dirname(path)
     if not exists(outdir):
         os.mkdir(outdir)
 
-def is_parent():
-    pass
+def archive_raw_img(img, d):
+    return shutil.move(img, d)
+
+def init_dirs(rootdir):
+    outdir = os.path.join(rootdir, OUTDIR)
+    rawdir = os.path.join(rootdir, RAWDIR)
+    for d in (outdir, rawdir):
+        if not exists(d):
+            os.mkdir(d)
+    return (outdir, rawdir)
 
 def is_rawsize(img):
     return os.path.getsize(img) >= SIZECUTOFF
